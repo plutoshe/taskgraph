@@ -7,5 +7,4 @@ type MapreduceTask interface {
 	Task                    // task interface of task graph
 	Emit(string, string)    // commit interface for mapper
 	Collect(string, string) // commit interface for
-	MapreduceConfiguration(MapreduceConfig)
 }

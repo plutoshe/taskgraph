@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"../../controller"
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/taskgraph/taskgraph/controller"
 
 	"../../../taskgraph"
 	"../../filesystem"
@@ -98,7 +98,7 @@ func main() {
 	ll = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)
 
 	etcdURLs := []string{"http://localhost:4001"}
-	mapreduceConfig := taskgraph.MapreduceConfig{
+	mapreduceConfig := mapreduce.MapreduceConfig{
 		MapperNum:        uint64(*mapperNum),
 		ShuffleNum:       uint64(*shuffleNum),
 		ReducerNum:       uint64(*reducerNum),
@@ -111,6 +111,23 @@ func main() {
 		EtcdURLs:         etcdURLs,
 		FilesystemClient: azureClient,
 		WorkDir:          map[string][]taskgraph.Work{"mapper": works},
+	}
+
+	iconfig := map[string]interface{}{
+		"MapperNum":        uint64(*mapperNum),
+		"ShuffleNum":       uint64(*shuffleNum),
+		"ReducerNum":       uint64(*reducerNum),
+		"MapperFunc":       mapperFunc,
+		"ReducerFunc":      reducerFunc,
+		"UserDefined":      true,
+		"AppName":          *job,
+		"InterDir":         "mapreducerprocesstemporaryresult",
+		"OutputDir":        *outputDir,
+		"EtcdURLs":         etcdURLs,
+		"FilesystemClient": azureClient,
+		"WorkDir":          map[string][]taskgraph.Work{"mapper": works},
+		"ReaderBufferSize": 4096,
+		"WriterBufferSize": 4096,
 	}
 	ntask := max(mapreduceConfig.MapperNum+mapreduceConfig.ShuffleNum, mapreduceConfig.ShuffleNum+mapreduceConfig.ReducerNum) + 1
 	switch *programType {
@@ -132,11 +149,10 @@ func main() {
 
 	case "t":
 		log.Printf("task")
-		bootstrap := framework.NewMapreduceBootStrap(mapreduceConfig.AppName, mapreduceConfig.EtcdURLs, createListener(), ll)
-		taskBuilder := &mapreduce.MapreduceTaskBuilder{}
+		bootstrap := framework.NewBootStrap(mapreduceConfig.AppName, mapreduceConfig.EtcdURLs, createListener(), ll)
+		taskBuilder := &mapreduce.MapreduceTaskBuilder{Config: iconfig}
 		bootstrap.SetTaskBuilder(taskBuilder)
 		bootstrap.SetTopology(mapreduce.NewMapReduceTopology(mapreduceConfig.MapperNum, mapreduceConfig.ShuffleNum, mapreduceConfig.ReducerNum))
-		bootstrap.InitWithMapreduceConfig(mapreduceConfig)
 		bootstrap.Start()
 	default:
 		log.Fatal("Please choose a type: (c) controller, (t) task")

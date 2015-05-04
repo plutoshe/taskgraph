@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"../../taskgraph"
+	"../filesystem"
 	"./pkg/etcdutil"
 	pb "./proto"
 	"github.com/coreos/go-etcd/etcd"
@@ -38,7 +39,7 @@ type mapreduceTask struct {
 	mapperWriteCloser []bufio.Writer
 
 	finishedTask     map[uint64]bool
-	config           map[string]string
+	config           map[string]interface{}
 	shuffleContainer map[string][]string
 	lenFinishedTask  uint64
 	mapperWorkNum    uint64
@@ -60,7 +61,35 @@ type mapreduceTask struct {
 	//io writer
 	shuffleDepositWriter bufio.Writer
 
-	mapreduceConfig taskgraph.MapreduceConfig
+	mapreduceConfig MapreduceConfig
+}
+
+type MapreduceConfig struct {
+	//defined the task num
+	MapperNum  uint64
+	ShuffleNum uint64
+	ReducerNum uint64
+
+	//filesystem
+	FilesystemClient filesystem.Client
+	//final result output path
+	OutputDir string
+	//temporary result output path
+	InterDir string
+
+	//emit function
+	MapperFunc  func(taskgraph.MapreduceTask, string)
+	ReducerFunc func(taskgraph.MapreduceTask, string, []string)
+
+	//store the work, appname, and etcdurls
+	UserDefined bool
+	WorkDir     map[string][]taskgraph.Work
+	AppName     string
+	EtcdURLs    []string
+
+	//optional, define the buffer size
+	ReaderBufferSize int
+	WriterBufferSize int
 }
 
 type shuffleEmit struct {
@@ -116,7 +145,20 @@ func (mp *mapreduceTask) Init(taskID uint64, framework taskgraph.Framework) {
 	mp.taskID = taskID
 	mp.framework = framework
 	mp.finishedTask = make(map[uint64]bool)
-
+	mp.mapreduceConfig.MapperNum = mp.config["MapperNum"].(uint64)
+	mp.mapreduceConfig.ShuffleNum = mp.config["ShuffleNum"].(uint64)
+	mp.mapreduceConfig.ReducerNum = mp.config["ReducerNum"].(uint64)
+	mp.mapreduceConfig.FilesystemClient = mp.config["FilesystemClient"].(filesystem.Client)
+	mp.mapreduceConfig.OutputDir = mp.config["OutputDir"].(string)
+	mp.mapreduceConfig.InterDir = mp.config["InterDir"].(string)
+	mp.mapreduceConfig.MapperFunc = mp.config["MapperFunc"].(func(taskgraph.MapreduceTask, string))
+	mp.mapreduceConfig.ReducerFunc = mp.config["ReducerFunc"].(func(taskgraph.MapreduceTask, string, []string))
+	mp.mapreduceConfig.WorkDir = mp.config["WorkDir"].(map[string][]taskgraph.Work)
+	mp.mapreduceConfig.AppName = mp.config["AppName"].(string)
+	mp.mapreduceConfig.EtcdURLs = mp.config["EtcdURLs"].([]string)
+	mp.mapreduceConfig.ReaderBufferSize = mp.config["ReaderBufferSize"].(int)
+	mp.mapreduceConfig.WriterBufferSize = mp.config["WriterBufferSize"].(int)
+	mp.etcdClient = etcd.NewClient(mp.mapreduceConfig.EtcdURLs)
 	//channel init
 	mp.stopGrabTask = make(chan bool, 1)
 	mp.epochChange = make(chan *mapreduceEvent, 1)
@@ -128,11 +170,6 @@ func (mp *mapreduceTask) Init(taskID uint64, framework taskgraph.Framework) {
 	mp.shuffleWorkChan = make(chan *mapreduceEvent, 1)
 	mp.reducerWorkChan = make(chan *mapreduceEvent, 1)
 	go mp.run()
-}
-
-func (mp *mapreduceTask) MapreduceConfiguration(mapreduceConfig taskgraph.MapreduceConfig) {
-	mp.mapreduceConfig = mapreduceConfig
-	mp.etcdClient = etcd.NewClient(mapreduceConfig.EtcdURLs)
 }
 
 func (mp *mapreduceTask) run() {
