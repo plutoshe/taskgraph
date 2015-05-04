@@ -98,7 +98,7 @@ func OccupyWorkPath(appName, workStr string) string {
 }
 
 func OccupyWorkPathForType(appName, workType, idStr string) string {
-	return path.Join(appName, WorkOccupyDir, workType, idStr)
+	return path.Join("/", appName, WorkOccupyDir, workType, idStr)
 }
 
 func TaskMasterWork(appName, workStr string) string {

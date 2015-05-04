@@ -5,8 +5,8 @@ import (
 	"os"
 	"strconv"
 
+	"../mapreduce/pkg/etcdutil"
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/taskgraph/taskgraph/pkg/etcdutil"
 )
 
 // This is the controller of a job.
@@ -82,7 +82,7 @@ func (c *Controller) DestroyEtcdLayout() error {
 
 func (c *Controller) startFailureDetection() error {
 	c.failDetectStop = make(chan bool, 1)
-	err := etcdutil.DetectFailure(c.etcdclient, c.name, c.failDetectStop)
+	err := etcdutil.DetectFailure(c.etcdclient, c.name, c.failDetectStop, c.logger)
 	if err != nil {
 		// We currently didn't handle outside. So we do some logging at least.
 		c.logger.Printf("DetectFailure returns error: %v", err)

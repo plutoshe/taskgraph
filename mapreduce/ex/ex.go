@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"../../controller"
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/taskgraph/taskgraph/controller"
 
 	"../../../taskgraph"
 	"../../filesystem"

@@ -219,11 +219,13 @@ func (mp *mapreduceTask) grabWork(liveEpoch uint64, grabWorkType string) error {
 		ok, err := etcdutil.TryOccupyNode(
 			etcdutil.FreeWorkPathForType(mp.mapreduceConfig.AppName, grabWorkType, workIDStr),
 			etcdutil.OccupyWorkPathForType(mp.mapreduceConfig.AppName, grabWorkType, workIDStr),
-			etcdutil.TaskMasterWorkForType(mp.mapreduceConfig.AppName, grabWorkType, taskIDStr),
+			etcdutil.TaskMasterWork(mp.mapreduceConfig.AppName, taskIDStr),
 			0,
 			mp.etcdClient,
 			path.Join(mp.taskType, strconv.FormatUint(freeWork, 10)),
 		)
+		mp.logger.Println(etcdutil.TaskMasterWork(mp.mapreduceConfig.AppName, taskIDStr))
+		mp.logger.Println(path.Join(mp.taskType, strconv.FormatUint(freeWork, 10)))
 		if err != nil {
 			return err
 		}
@@ -252,7 +254,7 @@ func (mp *mapreduceTask) processWork(ctx context.Context, workChan chan *mapredu
 	// Once it is being released, the task continue to grab a free work to process
 	receiver := make(chan *etcd.Response, 1)
 	stop := make(chan bool, 1)
-	go mp.etcdClient.Watch(etcdutil.TaskMasterWorkForType(mp.mapreduceConfig.AppName, mp.taskType, strconv.FormatUint(mp.taskID, 10)), 0, false, receiver, stop)
+	go mp.etcdClient.Watch(etcdutil.TaskMasterWork(mp.mapreduceConfig.AppName, strconv.FormatUint(mp.taskID, 10)), 0, false, receiver, stop)
 	var num uint64 = 0
 	for resp := range receiver {
 		if resp.Action != "delete" {
@@ -295,6 +297,9 @@ func (mp *mapreduceTask) fileRead(ctx context.Context, work taskgraph.Work) {
 	if err != nil {
 		mp.logger.Fatalf("MapReduce : get azure storage client reader failed, ", err)
 	}
+	// if mp.workID == 3 {
+	// 	mp.logger.Fatalf("failed by intention")
+	// }
 	err = nil
 	var str string
 	bufioReader := bufio.NewReaderSize(mapperReaderCloser, mp.mapreduceConfig.ReaderBufferSize)
@@ -317,7 +322,7 @@ func (mp *mapreduceTask) fileRead(ctx context.Context, work taskgraph.Work) {
 	// notify the master mapper work has been done
 	mp.notifyChan <- &mapreduceEvent{ctx: ctx, workID: mp.workID, fromID: mp.taskID, linkType: "Slave", meta: "MapperWorkFinished" + strconv.FormatUint(mp.workID, 10)}
 	// release the task to grab a new work
-	mp.etcdClient.Delete(etcdutil.TaskMasterWorkForType(mp.mapreduceConfig.AppName, mp.taskType, strconv.FormatUint(mp.taskID, 10)), false)
+	mp.etcdClient.Delete(etcdutil.TaskMasterWork(mp.mapreduceConfig.AppName, strconv.FormatUint(mp.taskID, 10)), false)
 }
 
 // Read mapper data, shuffle, set a new reducer work
@@ -377,7 +382,7 @@ func (mp *mapreduceTask) transferShuffleData(ctx context.Context) {
 		shufflePath := mp.mapreduceConfig.InterDir + "/" + strconv.FormatUint(mp.workID, 10) + "from" + strconv.Itoa(i)
 		mp.Clean(shufflePath)
 	}
-	mp.etcdClient.Delete(etcdutil.TaskMasterWorkForType(mp.mapreduceConfig.AppName, mp.taskType, strconv.FormatUint(mp.taskID, 10)), false)
+	mp.etcdClient.Delete(etcdutil.TaskMasterWork(mp.mapreduceConfig.AppName, strconv.FormatUint(mp.taskID, 10)), false)
 
 }
 
@@ -435,7 +440,7 @@ func (mp *mapreduceTask) reducerProcess(ctx context.Context) {
 	mp.logger.Printf("%s removing..\n", reducerPath)
 	mp.Clean(reducerPath)
 	mp.notifyChan <- &mapreduceEvent{ctx: ctx, epoch: mp.epoch, linkType: "Slave", meta: "ReducerWorkFinished" + strconv.FormatUint(mp.workID, 10)}
-	mp.etcdClient.Delete(etcdutil.TaskMasterWorkForType(mp.mapreduceConfig.AppName, mp.taskType, strconv.FormatUint(mp.taskID, 10)), false)
+	mp.etcdClient.Delete(etcdutil.TaskMasterWork(mp.mapreduceConfig.AppName, strconv.FormatUint(mp.taskID, 10)), false)
 
 }
 

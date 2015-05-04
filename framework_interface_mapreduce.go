@@ -9,26 +9,29 @@ type MapreduceBootstrap interface {
 }
 
 type MapreduceConfig struct {
+	//defined the task num
 	MapperNum  uint64
 	ShuffleNum uint64
 	ReducerNum uint64
 
 	//filesystem
 	FilesystemClient filesystem.Client
-	OutputDir        string
-	InterDir         string
+	//final result output path
+	OutputDir string
+	//temporary result output path
+	InterDir string
 
 	//emit function
 	MapperFunc  func(MapreduceTask, string)
 	ReducerFunc func(MapreduceTask, string, []string)
 
-	//work
+	//store the work, appname, and etcdurls
 	UserDefined bool
 	WorkDir     map[string][]Work
 	AppName     string
 	EtcdURLs    []string
 
-	//optional
+	//optional, define the buffer size
 	ReaderBufferSize int
 	WriterBufferSize int
 }
