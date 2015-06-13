@@ -196,11 +196,11 @@ func (c *AzureClient) OpenWriteCloser(name string) (io.WriteCloser, error) {
 func (f *AzureFile) Write(b []byte) (int, error) {
 	cnt, blob, err := convertToAzurePath(f.path)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	blockList, err := f.client.GetBlockList(cnt, blob, storage.BlockListTypeAll)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	blocksLen := len(blockList.CommittedBlocks) + len(blockList.UncommittedBlocks)
@@ -212,7 +212,7 @@ func (f *AzureFile) Write(b []byte) (int, error) {
 		return 0, err
 	}
 	if err == io.EOF {
-		return 0, fmt.Errorf("Need blob content")
+		return 0, fmt.Errorf("Need write content")
 	}
 	for err != io.EOF {
 		blockId := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%011d\n", blocksLen-1)))
@@ -243,7 +243,7 @@ func (f *AzureFile) Write(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return 0, nil
+	return len(b), nil
 }
 
 func (f *AzureFile) Close() error {
