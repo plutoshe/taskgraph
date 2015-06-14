@@ -194,6 +194,9 @@ func (c *AzureClient) OpenWriteCloser(name string) (io.WriteCloser, error) {
 }
 
 func (f *AzureFile) Write(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, fmt.Errorf("Need write content")
+	}
 	cnt, blob, err := convertToAzurePath(f.path)
 	if err != nil {
 		return 0, err
@@ -202,30 +205,26 @@ func (f *AzureFile) Write(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	blocksLen := len(blockList.CommittedBlocks) + len(blockList.UncommittedBlocks)
 	var chunkSize int = storage.MaxBlobBlockSize
 	inputSourceReader := bytes.NewReader(b)
 	chunk := make([]byte, chunkSize)
-	n, err := inputSourceReader.Read(chunk)
-	if err != nil && err != io.EOF {
-		return 0, err
-	}
-	if err == io.EOF {
-		return 0, fmt.Errorf("Need write content")
-	}
-	for err != io.EOF {
-		blockId := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%011d\n", blocksLen-1)))
+	for {
+		n, err := inputSourceReader.Read(chunk)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return 0, err
+		}
+
+		blockId := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%011d\n", blocksLen)))
 		data := chunk[:n]
 		err = f.client.PutBlock(cnt, blob, blockId, data)
 		if err != nil {
 			return 0, err
 		}
 		blocksLen++
-		n, err = inputSourceReader.Read(chunk)
-		if err != nil && err != io.EOF {
-			return 0, err
-		}
 	}
 
 	blockList, err = f.client.GetBlockList(cnt, blob, storage.BlockListTypeAll)

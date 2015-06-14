@@ -57,7 +57,13 @@ func TestAzureClientWriteAndReadCloser(t *testing.T) {
 
 	data := []byte("some data")
 	_, err = writeCloser.Write(data)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = writeCloser.Write(data)
+	if err != nil {
+		t.Fatal(err)
+	}
 	data = []byte("some datasome data")
 	if err != nil {
 		t.Fatalf("Write failed: %v", err)
