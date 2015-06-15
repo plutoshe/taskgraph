@@ -201,11 +201,23 @@ func (f *AzureFile) Write(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	blockList, err := f.client.GetBlockList(cnt, blob, storage.BlockListTypeAll)
 	if err != nil {
 		return 0, err
 	}
-	blocksLen := len(blockList.CommittedBlocks) + len(blockList.UncommittedBlocks)
+
+	// blockLen is a naming rule for block,
+	// uses base64.StdEncoding.EncodeToString(fmt.Sprintf("%011d\n", blocksLen)))
+	// blockLen initially set to committed block size
+	// if exist uncommitted block of same name,
+	// it will rewrite the uncommitted block content
+	blocksLen := len(blockList.CommittedBlocks)
+	amendList := []storage.Block{}
+	for _, v := range blockList.CommittedBlocks {
+		amendList = append(amendList, storage.Block{v.Name, storage.BlockStatusCommitted})
+	}
+
 	var chunkSize int = storage.MaxBlobBlockSize
 	inputSourceReader := bytes.NewReader(b)
 	chunk := make([]byte, chunkSize)
@@ -224,20 +236,10 @@ func (f *AzureFile) Write(b []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		amendList = append(amendList, storage.Block{blockId, storage.BlockStatusUncommitted})
 		blocksLen++
 	}
 
-	blockList, err = f.client.GetBlockList(cnt, blob, storage.BlockListTypeAll)
-	if err != nil {
-		return 0, err
-	}
-	amendList := []storage.Block{}
-	for _, v := range blockList.CommittedBlocks {
-		amendList = append(amendList, storage.Block{v.Name, storage.BlockStatusCommitted})
-	}
-	for _, v := range blockList.UncommittedBlocks {
-		amendList = append(amendList, storage.Block{v.Name, storage.BlockStatusUncommitted})
-	}
 	err = f.client.PutBlockList(cnt, blob, amendList)
 	if err != nil {
 		return 0, err
