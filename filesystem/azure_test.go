@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -38,6 +39,22 @@ func init() {
 }
 
 func TestAzureClientWriteAndReadCloser(t *testing.T) {
+	type nodeIO struct {
+		inputString []string
+	}
+
+	// import test cases
+	var flagtests = []nodeIO{
+		{[]string{"some data", "some data", "some data"}},
+		{[]string{"a", "b", "c"}},
+	}
+	str := ""
+	for i := 0; i < 2000; i++ {
+		str = str + strconv.Itoa(i)
+	}
+	flagtests = append(flagtests, nodeIO{[]string{str}})
+
+	// testing
 	cli := setupAzureTest(t)
 	containerName, err := randString(32)
 	if err != nil {
@@ -49,39 +66,40 @@ func TestAzureClientWriteAndReadCloser(t *testing.T) {
 	}
 	defer cli.blobClient.DeleteContainer(containerName)
 
-	writeCloser, err := cli.OpenWriteCloser(containerName + "/" + blobName)
-	if err != nil {
-		t.Fatalf("OpenWriteCloser failed: %v", err)
-	}
-	defer cli.blobClient.DeleteBlob(containerName, blobName)
+	for i, tt := range flagtests {
+		blobName := "testcase" + strconv.Itoa(i)
+		writeCloser, err := cli.OpenWriteCloser(containerName + "/" + blobName)
+		if err != nil {
+			t.Fatalf("OpenWriteCloser failed: %v", err)
+		}
+		defer cli.blobClient.DeleteBlob(containerName, blobName)
+		var cmp []byte
+		for _, content := range tt.inputString {
+			data := []byte(content)
+			writeLen, err := writeCloser.Write(data)
+			if err != nil {
+				t.Fatalf("Write failed: %v", err)
+			}
+			if writeLen != len(data) {
+				t.Fatalf("Write num is not correct. Get = %d, Want = %d", writeLen, len(data))
+			}
+			cmp = append(cmp, data...)
+		}
+		writeCloser.Close()
 
-	data := []byte("some data")
-	_, err = writeCloser.Write(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = writeCloser.Write(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data = []byte("some datasome data")
-	if err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
-	writeCloser.Close()
+		readCloser, err := cli.OpenReadCloser(containerName + "/" + blobName)
+		if err != nil {
+			t.Fatalf("OpenReadCloser failed: %v", err)
+		}
+		b, err := ioutil.ReadAll(readCloser)
+		if err != nil {
+			t.Fatalf("Read failed: %v", err)
+		}
+		readCloser.Close()
 
-	readCloser, err := cli.OpenReadCloser(containerName + "/" + blobName)
-	if err != nil {
-		t.Fatalf("OpenReadCloser failed: %v", err)
-	}
-	b, err := ioutil.ReadAll(readCloser)
-	if err != nil {
-		t.Fatalf("Read failed: %v", err)
-	}
-	readCloser.Close()
-
-	if bytes.Compare(b, data) != 0 {
-		t.Fatalf("Read result isn't correct. Get = %s, Want = %s", string(b), string(data))
+		if bytes.Compare(b, cmp) != 0 {
+			t.Fatalf("Read result isn't correct. Get = %s, Want = %s", string(b), string(cmp))
+		}
 	}
 
 }
