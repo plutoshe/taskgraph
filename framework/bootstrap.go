@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/taskgraph/taskgraph"
-	"github.com/taskgraph/taskgraph/pkg/etcdutil"
+	"github.com/plutoshe/taskgraph"
+	"github.com/plutoshe/taskgraph/pkg/etcdutil"
 	"golang.org/x/net/context"
 )
 

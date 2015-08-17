@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/taskgraph/taskgraph"
+	"github.com/plutoshe/taskgraph"
 )
 
 type master struct {

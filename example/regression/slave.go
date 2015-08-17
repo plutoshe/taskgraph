@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/taskgraph/taskgraph"
-	pb "github.com/taskgraph/taskgraph/example/regression/proto"
+	"github.com/plutoshe/taskgraph"
+	pb "github.com/plutoshe/taskgraph/example/regression/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"

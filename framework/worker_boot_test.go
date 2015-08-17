@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/taskgraph/taskgraph/pkg/etcdutil"
+	"github.com/plutoshe/taskgraph/pkg/etcdutil"
 )
 
 // Worker should register its address in etcd so that others can find him.

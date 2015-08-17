@@ -6,10 +6,10 @@ import (
 	"net"
 
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/taskgraph/taskgraph/controller"
-	"github.com/taskgraph/taskgraph/example/regression"
-	"github.com/taskgraph/taskgraph/example/topo"
-	"github.com/taskgraph/taskgraph/framework"
+	"github.com/plutoshe/taskgraph/controller"
+	"github.com/plutoshe/taskgraph/example/regression"
+	"github.com/plutoshe/taskgraph/example/topo"
+	"github.com/plutoshe/taskgraph/framework"
 )
 
 func main() {
